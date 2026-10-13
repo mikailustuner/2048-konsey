@@ -164,3 +164,22 @@ TEST_CASE("masked space index round trip") {
     }
     CHECK_FALSE(m.contains(0));
 }
+
+TEST_CASE("games cross 32768+32768 into 65536 through the exact path") {
+    // Two 32768s side by side plus a ladder: any policy that ever moves left/right merges them.
+    Board start = row_board(15, 15, 14, 13);
+    start = set_cell(set_cell(start, 4, 12), 5, 11);
+    int reached = 0;
+    for (uint64_t seed = 0; seed < 200; ++seed) {
+        Rng moves(seed);
+        GameResult g = play_game(seed, [&](Board b) {
+            CHECK(max_exp(b) <= 15);  // policy always sees a fast board
+            int d;
+            while (move(b, d = int(moves.below(4))) == b && can_move(b)) {}
+            return d;
+        }, false, start);
+        CHECK(g.max_exp >= 15);
+        reached += g.max_exp >= 16;
+    }
+    CHECK(reached > 150);
+}

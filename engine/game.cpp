@@ -38,11 +38,11 @@ void play_grid(Grid g, Rng& rng, const Policy& policy, bool record, GameResult& 
 
 }  // namespace
 
-GameResult play_game(uint64_t seed, const Policy& policy, bool record) {
+GameResult play_game(uint64_t seed, const Policy& policy, bool record, Board start) {
     GameResult res;
     res.seed = seed;
     Rng rng(seed);
-    Board b = initial_board(rng);
+    Board b = start ? start : initial_board(rng);
     while (can_move(b)) {
         if (count_exp(b, kMaxFastExp) >= 2) {
             play_grid(to_grid(b), rng, policy, record, res);

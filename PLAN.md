@@ -190,3 +190,19 @@ Süreler çoğunlukla **eğitim/hesap süresi**; kod yazma kısmı daha kısa.
 - **D2 — Bulut: Google Colab, A100 + High-RAM.** Ayrıntılar en baştaki "Çalışma ortamı" bölümünde.
 - **D3 — Dil: C++20 çekirdek (+ isteğe bağlı CUDA) + Python (uv) analiz.**
 - **D4 — Video: kesin çıktı.** Log, tekrar ve soy kaydı Faz 0'dan itibaren tam detaylı; her faz sonunda "o an" tekrarları saklanır.
+
+---
+
+## 7. Faz sonuçları (ölçülmüş)
+
+### Faz 0 — 2026-10-13 ✅ (Colab kısmı bekliyor)
+- İskelet, CMake (C++20, `-O3 -march=native`), doctest, `eval`/`replay`/`bench` araçları, JSONL log, `colab/run.ipynb`.
+- Testler yerelde yeşil (g++ 16.2) ve **Colab vekilinde yeşil**: Docker `ubuntu:22.04` + g++ 11.4.0 (Colab'ın derleyicisi). Gerçek Colab oturumu ve donanım ölçümü (`nproc`, `free -h`, `nvidia-smi`) kullanıcının ilk oturumunu bekliyor — notebook'un 1. hücresi.
+- `eval --agent random`, 10.000 oyun: ort. skor 1093, 256 %7,95, 512 %0,02; 10.000 tekrarın tamamı `replay` ile birebir doğrulandı.
+
+### Faz 1 — 2026-10-13 ✅
+- **65536 kararı:** hızlı yol = `uint64_t`, 4 bit/kare, 32768'e kadar (tablolar 15+15'i birleştirmez). Tahtada iki 32768 olduğu an oyun **kesin yola** (`Grid` = 16 × `uint8_t`, üs ≤ 17) geçer; politika tahtayı **tile-downgrading** görünümüyle (`downgrade()`: en küçük eksik üs kaldırılır, üstündekiler bir iner) görür, böylece ajanlar 4 bitlik tahtayla çalışmaya devam eder. Yasal hamle kümesi korunur (test). Ayrıntılı tile-downgrading stratejisi Faz 6a'da.
+- Satır tabloları (65536 giriş, sol/sağ + skor), dikey hamleler transpoz ile.
+- **Hız: 165 M hamle/sn** tek iş parçacığı (ölçüt ≥ 20M); rastgele oyun 132k oyun/sn.
+- Doğruluk: 4M rastgele tahta × 4 yön referansla %100 eşleşme; 2000 tam oyun kare kare referansla aynı; tekrar dosyası oyunu birebir üretiyor; iki 32768 → 65536 geçişi uçtan uca test edildi.
+- Hibrit için `MaskedSpace`: sabit kare maskesi + serbest hücrelerin karma tabanlı indekslenmesi (gidiş-dönüş testli).

@@ -19,8 +19,9 @@ struct GameResult {
 };
 
 // Plays one full game from `seed`. Spawns come from Rng(seed) only, so a game is fully
-// determined by its seed and move sequence.
-GameResult play_game(uint64_t seed, const Policy& policy, bool record = false);
+// determined by its seed and move sequence. `start` != 0 replaces the two initial spawns
+// (used for tests and endgame positions).
+GameResult play_game(uint64_t seed, const Policy& policy, bool record = false, Board start = 0);
 
 // Replays a recorded game; throws std::runtime_error on an illegal move.
 GameResult replay_game(uint64_t seed, const std::string& record);
