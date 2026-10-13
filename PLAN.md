@@ -211,3 +211,11 @@ Süreler çoğunlukla **eğitim/hesap süresi**; kod yazma kısmı daha kısa.
 - 4×6 n-tuple (Yeh/Jaśkowski şekilleri, 8 simetri, 268 MB), hamle-sonrası TD(0), α = 0,1 (özellik sayısına bölünmüş), 8 iş parçacığı Hogwild, 300.000 eğitim oyunu (~13 dk, 340–1500 oyun/sn).
 - Değerlendirme (1-ply, 1000 oyun, tohum 1.000.000+): **2048 %94,0 [92,4–95,3]** (ölçüt ≥ %90 ✅), 4096 %84,5, 8192 %47,3, 16384 %0,3; ort. skor 103.165, maks. 237.164.
 - Öğrenme eğrisi: `analysis/figures/faz2_curve.png`. Checkpoint her 5 dk, kaldığı yerden devam (testli). Tekrar oynatıcı: `analysis/player.html` (JS motoru C++ ile 2000/2000 eşleşti).
+
+### Faz 3–5 — kod hazır, yerelde doğrulandı; ölçümler Colab'da (karar 2026-10-13)
+**Karar:** gerçek eğitimlerin tamamı Colab A100 + High-RAM'de, GPU'nun tamamı kullanılarak; yerel yalnızca deneme.
+- **Faz 4b (GPU) öne alındı:** warp başına bir oyun, değer CPU ile bit-bit aynı (FMA kapalı, sıralı toplama). Toplu TD güncellemesi: dokunulan ağırlık listesi, ağırlık başına en fazla κ/α ardışık güncelleme (κ=5). Ölçüm (GTX 1050 Ti): Hogwild 768 eşzamanlı oyun × α=0,1'de ıraksıyor; toplu güncelleme ile tek ağ tüm slotlarda CPU'yla aynı öğrenme eğrisi (40k oyun: 42,5k vs 41,2k). TC α=1,0 kararlı (60k oyun: ort. 85,5k).
+- Karışık şekilli GPU nüfusu (4×6/8×6, TC/TC'siz, çok aşama): ablasyon kolları, final kopyaları, PBT ve konsey aynı GPU sürecinde.
+- **Yerel deneme ablasyonu (CPU, 300k oyun, 1-ply, 1000 oyun):** A TD ort. 103k / 2048 %94,0; B +OI 29,6k (OI 320k bu bütçede sönmüyor); C +TC 46,5k / 2048 %96,9 [95,6–97,8]; D +çok aşama 49,1k (16384'e ulaşılmadığından etkisiz); E 8×6 78,4k / 2048 %98,6 / 4096 %82,4.
+- `colab/run.ipynb` (üretici: `colab/make_notebook.py`): Faz 3a ablasyon (5 kol eşzamanlı) → 3b final (bellek kadar kopya) → Faz 4 PBT (bellek kadar ajan) + kazanan ayarlarla 8×6 yeniden eğitim → Faz 5 konsey (ortalama/ağırlıklı GPU, oylama CPU, damıtma CPU) → `analysis/report.py` tüm ölçütleri (Wilson, eşleştirilmiş işaret testi, McNemar) `RAPOR.md`'ye yazar. Notebook yerelde küçük bütçeyle baştan sona kuru çalıştırıldı.
+- **Bekleyen:** Colab'da koşu → Faz 3 (2-ply 16384 ≥ %50), Faz 4 (nesil artışı, evrilmiş ≥ elle), Faz 5 (konsey vs en iyi tek) sayıları.

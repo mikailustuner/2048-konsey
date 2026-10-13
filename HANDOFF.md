@@ -28,15 +28,16 @@ Evrimle ayarlanan RL ajanlarından (n-tuple + TD) oluşan bir konsey + expectima
 - Yerel: Ryzen 5 1500X (4C/8T), 16 GB RAM, GTX 1050 Ti 4 GB, g++ 16.2, Python 3.14, uv var; **cmake yok** (`uv tool install cmake` ile kurulacak).
 - Colab: A100 + High-RAM — rakamlar **doğrulanmadı** (~12 vCPU, ~80 GB RAM, 40/80 GB GPU tahmini). İlk oturumda `nproc`, `free -h`, `nvidia-smi`, `g++ --version` ölçülüp PLAN.md'ye yazılacak.
 
-## Durum
-- Yapıldı: plan, kararlar, repo + ilk commit (`3762f75`: PLAN.md, README.md, .gitignore).
-- Kod: **henüz yok.**
+## Durum (2026-10-13)
+- Faz 0–2 ✅ (etiketler `faz-0..2`, sonuçlar PLAN.md §7).
+- Faz 3–5: kod + GPU (Faz 4b) + Colab hattı hazır ve yerelde doğrulandı; **ölçümler Colab'da koşulacak** (`colab/run.ipynb`, sırayla).
+- Arayüz: `gui/launch.sh` (modeli canlı izle / kendin oyna), model Drive'dan `tools/fetch_model.sh` ile.
+- CUDA yerelde: `docker run --gpus all ... konsey-cuda:12.6` (Ubuntu 22.04 + CUDA 12.6 + g++ 11, Colab vekili); derleme dizini `build-cuda/`, ikililer host'ta da çalışır.
 
-## Sıradaki adım: Faz 0 (kullanıcı onayı bekleniyor)
-PLAN.md → "Faz 0": dizin yapısı (`engine/ ntuple/ search/ evolve/ council/ tools/ tests/ analysis/ colab/`), CMake (C++20, `-O3 -march=native`), test çatısı (Catch2 veya doctest), ortak değerlendirme düzeneği (sabit tohumlar, Wilson %95 güven aralığı), JSONL log şeması, `colab/run.ipynb` iskeleti.
-Ölçüt: testler yerelde ve Colab'da yeşil; `eval` rastgele ajanla rapor üretiyor.
+## Sıradaki adım
+Kullanıcı: Colab Secrets'a `GITHUB_TOKEN` ekle → `colab/run.ipynb` hücre 1–6 → bütçeleri kalibrasyona göre ayarla → 7… Sonra `runs/RAPOR.md` ile faz sonuçları PLAN.md'ye.
 
 ## Açık noktalar / dikkat
-- 65536+ karelerin temsili (4 bit/kare 32768'de doluyor) Faz 1'de kararlaştırılacak.
-- Oyun sonu tablosu için motor API'si "sabit kare maskesi" desteklemeli (Faz 1).
+- GPU yolu yalnızca hızlı tahta (65536 birleşmesi yok); rekor/65536 ölçümleri CPU `eval` ile (kesin yol).
+- GPU eğitimi TD(0)/TC; λ>0 yalnızca CPU'da.
 - macroxue ve 2048EndgameTablebase lisansları Faz 6b'den önce incelenecek.

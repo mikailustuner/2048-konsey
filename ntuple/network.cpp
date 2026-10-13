@@ -63,6 +63,10 @@ std::vector<std::vector<int>> NTupleNet::preset(const std::string& name) {
     // 4x6: the standard Yeh / Jaśkowski / moporgic shapes (row+2, 2x3 corner, 2x3 middle).
     std::vector<std::vector<int>> p = {{0, 1, 2, 3, 4, 5}, {4, 5, 6, 7, 8, 9}, {0, 1, 2, 4, 5, 6}, {4, 5, 6, 8, 9, 10}};
     if (name == "4x6") return p;
+    if (name == "4x5") {  // small (16 MB): smoke runs and dry runs of the Colab pipeline
+        for (auto& t : p) t.pop_back();
+        return p;
+    }
     if (name == "8x6") {
         // + four snake/hook shapes along the corner, not symmetric copies of the first four.
         p.insert(p.end(), {{0, 1, 5, 6, 7, 10}, {0, 1, 2, 5, 9, 10}, {0, 1, 5, 9, 13, 14}, {0, 1, 5, 8, 9, 13}});

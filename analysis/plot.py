@@ -43,7 +43,7 @@ def curve(args):
     runs = defaultdict(list)
     for r in rows:
         if "egitim_oyunu" in r:
-            runs[r["run_id"]].append(r)
+            runs[f'{r["run_id"]}/{r["ajan_id"]}'].append(r)
     tiles = ["2048", "8192", "16384", "32768"]
     fig, axes = plt.subplots(1 + len(tiles), 1, figsize=(8, 2.2 * (1 + len(tiles))), sharex=True)
     fig.patch.set_facecolor(SURFACE)

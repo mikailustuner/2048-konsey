@@ -23,6 +23,7 @@ int main(int argc, char** argv) {
         cfg.seed0 = uint64_t(a.num("seed", 1'000'000));
         cfg.threads = int(a.num("threads", std::thread::hardware_concurrency()));
         cfg.record = a.has("record");
+        std::string per_game = a.str("per-game", "");
         LogMeta meta{a.str("run-id", "eval"), a.str("faz", "0"), a.str("ajan-id", a.str("agent", "random")),
                      int(a.num("nesil", 0))};
         std::string out = a.str("out", "runs/eval");
@@ -31,7 +32,8 @@ int main(int argc, char** argv) {
 #ifdef K2048_CUDA
             // greedy / expectimax / council (mean|weighted) over same-shaped nets, all on the GPU.
             std::string kind = a.str("agent", "greedy");
-            int depth = kind == "greedy" ? 1 : int(a.num("depth", kind == "council" ? 1 : 2));
+            int depth = int(a.num("depth", kind == "expectimax" ? 2 : 1));
+            if (kind == "greedy") depth = 1;
             std::vector<float> weights;
             if (kind == "council") {
                 if (parse_mode(a.str("combine", "mean")) == Council::Mode::Vote) throw std::runtime_error("--gpu: vote is CPU only");
@@ -65,6 +67,11 @@ int main(int argc, char** argv) {
                             "{\"run_id\":\"" + meta.run_id + "\",\"seed\":" + std::to_string(g.seed) +
                                 ",\"score\":" + std::to_string(g.score) + ",\"max_tile\":" +
                                 std::to_string(1ULL << g.max_exp) + ",\"moves\":\"" + g.record + "\"}");
+        if (!per_game.empty())  // one line per game, for paired comparisons (same seeds)
+            for (auto& g : r.results)
+                append_line(per_game, "{\"ajan_id\":\"" + meta.ajan_id + "\",\"seed\":" + std::to_string(g.seed) +
+                                          ",\"score\":" + std::to_string(g.score) + ",\"max_exp\":" +
+                                          std::to_string(g.max_exp) + ",\"moves\":" + std::to_string(g.moves) + "}");
         std::printf("log: %s/log.jsonl\n", out.c_str());
         return 0;
     });

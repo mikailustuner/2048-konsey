@@ -463,15 +463,8 @@ GpuPopulation::GpuPopulation(const std::vector<NTupleNet*>& nets, int slots)
         CK(cudaMalloc(&d, n->data_size() * sizeof(float)));
         CK(cudaMemcpy(d, n->data(), n->data_size() * sizeof(float), cudaMemcpyHostToDevice));
         m.d_w.push_back(d);
-        size_t nw = n->data_size() / size_t(sh.stride);
-        float* dg = nullptr;
-        unsigned* dn = nullptr;
-        CK(cudaMalloc(&dg, nw * sizeof(float)));
-        CK(cudaMalloc(&dn, nw * sizeof(unsigned)));
-        CK(cudaMemset(dg, 0, nw * sizeof(float)));
-        CK(cudaMemset(dn, 0, nw * sizeof(unsigned)));
-        m.d_g.push_back(dg);
-        m.d_n.push_back(dn);
+        m.d_g.push_back(nullptr);  // batched-update buffers: allocated on the first train()
+        m.d_n.push_back(nullptr);
         std::vector<bool> sn;
         for (int k = 0; k < n->stages(); ++k) sn.push_back(n->seen(k));
         m.seen.push_back(sn);
@@ -563,21 +556,30 @@ void GpuPopulation::train(const std::vector<GpuAgentParams>& params, std::vector
     d_target.put(tgt);
     std::vector<int> hits(P * kMaxStages, 0);
     d_hits.put(hits);
+    for (int a : active) {
+        const size_t ai = size_t(a);
+        if (m.d_g[ai]) continue;
+        size_t nw = m.floats[ai] / size_t(m.shapes[size_t(m.agent_shape[ai])].stride);
+        CK(cudaMalloc(&m.d_g[ai], nw * sizeof(float)));
+        CK(cudaMalloc(&m.d_n[ai], nw * sizeof(unsigned)));
+        CK(cudaMemset(m.d_g[ai], 0, nw * sizeof(float)));
+        CK(cudaMemset(m.d_n[ai], 0, nw * sizeof(unsigned)));
+    }
     // Touched-weight lists: at most one update (F features) per slot and move.
     std::vector<unsigned long long> list_cap(P, 0);
     for (int a : active)
         list_cap[size_t(a)] = (unsigned long long)per_agent * unsigned(moves) * unsigned(m.shapes[size_t(m.agent_shape[size_t(a)])].F);
     std::vector<DevBuf<unsigned long long>*> lists;
     DevBuf<unsigned> d_list_count(P);
+    struct Free {
+        std::vector<DevBuf<unsigned long long>*>& v;
+        ~Free() { for (auto* p : v) delete p; }
+    } free_lists{lists};
     std::vector<Accum> accs(P);
     for (size_t a = 0; a < P; ++a) {
         lists.push_back(new DevBuf<unsigned long long>(list_cap[a]));
         accs[a] = {m.d_g[a], m.d_n[a], lists.back()->p, d_list_count.p + a, list_cap[a]};
     }
-    struct Free {
-        std::vector<DevBuf<unsigned long long>*>& v;
-        ~Free() { for (auto* p : v) delete p; }
-    } free_lists{lists};
     DevBuf<Accum> d_accs(P);
     d_accs.put(accs);
     std::vector<unsigned> list_count(P, 0);
@@ -660,6 +662,11 @@ void GpuPopulation::train(const std::vector<GpuAgentParams>& params, std::vector
         }
         if (on_tick) on_tick();
     }
+    for (size_t a = 0; a < P; ++a)  // last, partial window
+        if (!win[a].results.empty() && on_window) {
+            win[a].seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t_win[a]).count();
+            on_window(int(a), win[a], done[a]);
+        }
 }
 
 EvalReport GpuPopulation::evaluate(const std::vector<int>& members, const std::vector<float>& weights, int depth,
