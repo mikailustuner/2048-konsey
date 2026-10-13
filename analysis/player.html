@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>2048 Tekrar Oynatıcı</title>
+<title>2048 Replay Player</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
   :root {
@@ -45,33 +45,33 @@
 </head>
 <body>
 <main>
-  <h1>2048 tekrar oynatıcı</h1>
+  <h1>2048 replay player</h1>
 
-  <section class="panel" aria-label="Dosya ve oyun seçimi">
+  <section class="panel" aria-label="File and game">
     <div class="row">
       <div><label for="file">replays.jsonl</label><input id="file" type="file" accept=".jsonl,.json,.txt"></div>
-      <div><label for="game">Oyun</label><select id="game" disabled><option>Önce dosya yükleyin</option></select></div>
+      <div><label for="game">Game</label><select id="game" disabled><option>Load a file first</option></select></div>
     </div>
     <p id="status" class="status" role="status" aria-live="polite"></p>
   </section>
 
-  <section class="panel" aria-label="Oynatma">
+  <section class="panel" aria-label="Playback">
     <div class="stats">
-      <div>Hamle<b id="move">–</b></div>
-      <div>Skor<b id="score">–</b></div>
-      <div>En büyük<b id="max">–</b></div>
-      <div>Tohum<b id="seed">–</b></div>
+      <div>Move<b id="move">–</b></div>
+      <div>Score<b id="score">–</b></div>
+      <div>Max tile<b id="max">–</b></div>
+      <div>Seed<b id="seed">–</b></div>
     </div>
     <div style="height:16px"></div>
-    <div id="board" class="board" role="img" aria-label="Tahta"></div>
+    <div id="board" class="board" role="img" aria-label="Board"></div>
     <div style="height:16px"></div>
     <div class="row">
-      <button id="back" aria-label="Bir hamle geri">◀</button>
-      <button id="play" class="primary">Oynat</button>
-      <button id="fwd" aria-label="Bir hamle ileri">▶</button>
-      <div><label for="speed">Hız: <span id="speedv">20</span> hamle/sn</label><input id="speed" type="range" min="1" max="400" value="20"></div>
+      <button id="back" aria-label="One move back">◀</button>
+      <button id="play" class="primary">Play</button>
+      <button id="fwd" aria-label="One move forward">▶</button>
+      <div><label for="speed">Speed: <span id="speedv">20</span> moves/s</label><input id="speed" type="range" min="1" max="400" value="20"></div>
     </div>
-    <div style="margin-top:16px"><label for="pos">Konum</label><input id="pos" type="range" min="0" max="0" value="0" disabled></div>
+    <div style="margin-top:16px"><label for="pos">Position</label><input id="pos" type="range" min="0" max="0" value="0" disabled></div>
   </section>
 </main>
 <script>
@@ -124,7 +124,7 @@ function simulate(seed, moves) {
   let score = 0;
   for (const ch of moves) {
     const s = move(g, "URDL".indexOf(ch));
-    if (s < 0) throw new Error("geçersiz hamle " + frames.length);
+    if (s < 0) throw new Error("illegal move " + frames.length);
     score += s; spawn(g, rng);
     frames.push({ g: g.slice(), score });
   }
@@ -148,18 +148,18 @@ function render() {
     tiles[i].style.color = INK(e);
   });
   $("move").textContent = `${pos} / ${frames.length - 1}`;
-  $("score").textContent = f.score.toLocaleString("tr-TR");
-  $("max").textContent = (2 ** Math.max(...f.g)).toLocaleString("tr-TR");
+  $("score").textContent = f.score.toLocaleString("en-US");
+  $("max").textContent = (2 ** Math.max(...f.g)).toLocaleString("en-US");
   $("pos").value = pos;
-  $("board").setAttribute("aria-label", "Tahta, hamle " + pos);
+  $("board").setAttribute("aria-label", "Board, move " + pos);
 }
-function stop() { clearInterval(timer); timer = null; $("play").textContent = "Oynat"; }
+function stop() { clearInterval(timer); timer = null; $("play").textContent = "Play"; }
 function setStatus(msg, bad) { $("status").textContent = msg; $("status").className = "status" + (bad ? " bad" : ""); }
 
 $("file").addEventListener("change", async e => {
   const file = e.target.files[0];
   if (!file) return;
-  setStatus("Okunuyor…");
+  setStatus("Reading…");
   const text = await file.text();
   games = [];
   for (const line of text.split("\n")) {
@@ -170,11 +170,11 @@ $("file").addEventListener("change", async e => {
       games.push(j);
     } catch { /* skip malformed lines */ }
   }
-  if (!games.length) { setStatus("Dosyada oyun bulunamadı.", true); return; }
+  if (!games.length) { setStatus("No games found in the file.", true); return; }
   games.sort((a, b) => b.score - a.score);
   const sel = $("game");
   sel.innerHTML = "";
-  games.forEach((g, i) => sel.add(new Option(`#${i + 1}  skor ${g.score.toLocaleString("tr-TR")}  ·  ${g.max_tile}  ·  tohum ${g.seedBig}`, i)));
+  games.forEach((g, i) => sel.add(new Option(`#${i + 1}  score ${g.score.toLocaleString("en-US")}  ·  ${g.max_tile}  ·  seed ${g.seedBig}`, i)));
   sel.disabled = false;
   load(0);
 });
@@ -187,8 +187,8 @@ function load(i) {
     frames = simulate(g.seedBig, g.moves);
     const last = frames[frames.length - 1];
     const ok = last.score === g.score;
-    setStatus(ok ? `${games.length} oyun yüklendi · skor kayıtla eşleşti` : `UYUŞMAZLIK: hesaplanan ${last.score}, kayıt ${g.score}`, !ok);
-  } catch (err) { frames = []; setStatus("Tekrar hatası: " + err.message, true); return; }
+    setStatus(ok ? `${games.length} games loaded · score matches the record` : `MISMATCH: computed ${last.score}, recorded ${g.score}`, !ok);
+  } catch (err) { frames = []; setStatus("Replay error: " + err.message, true); return; }
   pos = 0;
   $("seed").textContent = String(g.seedBig);
   $("pos").max = frames.length - 1;
@@ -203,7 +203,7 @@ $("speed").oninput = e => { $("speedv").textContent = e.target.value; if (timer)
 function play() {
   if (!frames.length) return;
   if (pos >= frames.length - 1) pos = 0;
-  $("play").textContent = "Duraklat";
+  $("play").textContent = "Pause";
   timer = setInterval(() => { if (pos >= frames.length - 1) return stop(); pos++; render(); }, 1000 / +$("speed").value);
 }
 $("play").onclick = () => (timer ? stop() : play());

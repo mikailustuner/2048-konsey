@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -65,60 +65,60 @@
 <main>
   <header>
     <h1>2048 konsey</h1>
-    <div class="tabs" role="tablist" aria-label="Mod">
-      <button id="tab-watch" role="tab" aria-pressed="true" aria-controls="watch">Modeli izle</button>
-      <button id="tab-human" role="tab" aria-pressed="false" aria-controls="human">Kendin oyna</button>
+    <div class="tabs" role="tablist" aria-label="Mode">
+      <button id="tab-watch" role="tab" aria-pressed="true" aria-controls="watch">Watch the model</button>
+      <button id="tab-human" role="tab" aria-pressed="false" aria-controls="human">Play yourself</button>
     </div>
   </header>
 
   <div class="layout">
-    <section class="panel" id="watch" aria-label="Model ayarları">
+    <section class="panel" id="watch" aria-label="Model settings">
       <div class="field">
         <label for="model">Model</label>
-        <select id="model" disabled><option>Yükleniyor…</option></select>
+        <select id="model" disabled><option>Loading…</option></select>
       </div>
       <div class="field">
-        <label for="depth">Arama derinliği</label>
+        <label for="depth">Search depth</label>
         <select id="depth">
-          <option value="1">1 — açgözlü (çok hızlı)</option>
+          <option value="1">1 — greedy (very fast)</option>
           <option value="2" selected>2 — expectimax</option>
-          <option value="3">3 — expectimax (yavaş)</option>
+          <option value="3">3 — expectimax (slow)</option>
         </select>
       </div>
       <div class="field">
-        <label for="seed">Tohum</label>
-        <div class="inline"><input id="seed" type="number" min="0" value="1000000"><button id="rand" type="button">Rastgele</button></div>
+        <label for="seed">Seed</label>
+        <div class="inline"><input id="seed" type="number" min="0" value="1000000"><button id="rand" type="button">Random</button></div>
       </div>
       <div class="field">
-        <label for="speed">Hız: <span id="speedv">30 hamle/sn</span></label>
+        <label for="speed">Speed: <span id="speedv">30 moves/s</span></label>
         <input id="speed" type="range" min="1" max="201" value="30">
       </div>
-      <button id="go" class="primary">Başlat</button>
+      <button id="go" class="primary">Start</button>
       <p id="wstatus" class="status" role="status" aria-live="polite"></p>
-      <p class="hint">Yeni modeller <code>runs/</code> veya <code>models/</code> altına <code>.bin</code> olarak konunca listede görünür (<code>tools/fetch_model.sh</code>).</p>
+      <p class="hint">New models appear here once placed under <code>runs/</code> or <code>models/</code> as <code>.bin</code> (<code>tools/fetch_model.sh</code>).</p>
     </section>
 
-    <section class="panel" id="human" aria-label="Oyun ayarları" hidden>
+    <section class="panel" id="human" aria-label="Game settings" hidden>
       <div class="field">
-        <label for="hseed">Tohum</label>
-        <div class="inline"><input id="hseed" type="number" min="0" value="1000000"><button id="hrand" type="button">Rastgele</button></div>
+        <label for="hseed">Seed</label>
+        <div class="inline"><input id="hseed" type="number" min="0" value="1000000"><button id="hrand" type="button">Random</button></div>
       </div>
-      <button id="hnew" class="primary">Yeni oyun</button>
-      <p class="hint">Ok tuşları / WASD veya kaydırma. Aynı tohum = modelin oynadığı kare dizisinin aynısı.</p>
+      <button id="hnew" class="primary">New game</button>
+      <p class="hint">Arrow keys / WASD or swipe. Same seed = the same tile sequence the model faced.</p>
       <p id="hstatus" class="status" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="panel" aria-label="Oyun">
+    <section class="panel" aria-label="Game">
       <div class="stats">
-        <div>Hamle<b id="s-move">0</b></div>
-        <div>Skor<b id="s-score">0</b></div>
-        <div>En büyük<b id="s-max">–</b></div>
-        <div id="s-dir-wrap">Son hamle<b id="s-dir" class="arrow">–</b></div>
-        <div id="s-ms-wrap">Düşünme<b id="s-ms">–</b></div>
+        <div>Moves<b id="s-move">0</b></div>
+        <div>Score<b id="s-score">0</b></div>
+        <div>Max tile<b id="s-max">–</b></div>
+        <div id="s-dir-wrap">Last move<b id="s-dir" class="arrow">–</b></div>
+        <div id="s-ms-wrap">Thinking<b id="s-ms">–</b></div>
       </div>
       <div class="boardwrap">
-        <div id="board" class="board" role="img" aria-label="Tahta"></div>
-        <div id="overlay" class="overlay" aria-live="polite"><div><b id="ov-title">Oyun bitti</b><span id="ov-text"></span></div></div>
+        <div id="board" class="board" role="img" aria-label="Board"></div>
+        <div id="overlay" class="overlay" aria-live="polite"><div><b id="ov-title">Game over</b><span id="ov-text"></span></div></div>
       </div>
     </section>
   </div>
@@ -127,8 +127,8 @@
 import { Rng, spawn, move, canMove, DIRS } from "./engine.js";
 
 const $ = id => document.getElementById(id);
-const fmt = n => Number(n).toLocaleString("tr-TR");
-const ARROW = { U: "↑ yukarı", R: "→ sağ", D: "↓ aşağı", L: "← sol", "-": "–" };
+const fmt = n => Number(n).toLocaleString("en-US");
+const ARROW = { U: "↑ up", R: "→ right", D: "↓ down", L: "← left", "-": "–" };
 // Light tiles carry dark ink, dark tiles white ink (both >= 4.5:1).
 const TILE = ["", "#eee4da", "#ede0c8", "#f2b179", "#f59563", "#f67c5f", "#f65e3b", "#edcf72", "#edcc61", "#edc850",
   "#edc53f", "#edc22e", "#3c3a32", "#1e3a8a", "#581c87", "#7f1d1d", "#14532d", "#0c4a6e", "#111827"];
@@ -149,7 +149,7 @@ function draw(cells, stats) {
   $("s-max").textContent = fmt(2 ** Math.max(...cells));
   if (stats.dir !== undefined) $("s-dir").textContent = ARROW[stats.dir] || "–";
   if (stats.ms !== undefined) $("s-ms").textContent = stats.ms < 1 ? "<1 ms" : `${stats.ms.toFixed(0)} ms`;
-  $("board").setAttribute("aria-label", `Tahta, hamle ${stats.move}, skor ${stats.score}`);
+  $("board").setAttribute("aria-label", `Board, move ${stats.move}, score ${stats.score}`);
 }
 function overlay(show, title = "", text = "") {
   $("overlay").classList.toggle("show", show);
@@ -184,24 +184,24 @@ async function loadModels() {
     const sel = $("model");
     sel.innerHTML = "";
     if (!j.models.length) {
-      sel.add(new Option("Model yok", ""));
-      setStatus("wstatus", "Model bulunamadı: runs/ veya models/ altına bir .bin koyun.", true);
+      sel.add(new Option("No models", ""));
+      setStatus("wstatus", "No model found: put a .bin under runs/ or models/.", true);
       return;
     }
     for (const m of j.models) {
       const date = new Date(m.mtime * 1000).toLocaleDateString("tr-TR");
-      sel.add(new Option(`${m.id} · ${m.tuples} tuple · ${fmt(m.games)} oyun · ${date}`, m.id));
+      sel.add(new Option(`${m.id} · ${m.tuples} tuple · ${fmt(m.games)} games · ${date}`, m.id));
     }
     sel.disabled = false;
-    if (!j.play_built) setStatus("wstatus", "build/play derlenmemiş: cmake --build build", true);
-    else setStatus("wstatus", `${j.models.length} model hazır.`);
+    if (!j.play_built) setStatus("wstatus", "build/play is not built: cmake --build build", true);
+    else setStatus("wstatus", `${j.models.length} models ready.`);
   } catch {
-    setStatus("wstatus", "Gateway'e ulaşılamadı. gui/server.py çalışıyor mu?", true);
+    setStatus("wstatus", "Cannot reach the gateway. Is gui/server.py running?", true);
   }
 }
 function speed() { return +$("speed").value; }
 $("speed").oninput = () => {
-  $("speedv").textContent = speed() > 200 ? "anlık" : `${speed()} hamle/sn`;
+  $("speedv").textContent = speed() > 200 ? "instant" : `${speed()} moves/s`;
   if (timer) { clearInterval(timer); timer = setInterval(tick, 1000 / Math.min(speed(), 200)); }
 };
 function tick() {
@@ -209,15 +209,15 @@ function tick() {
     if (ended) finish();
     return;
   }
-  // "anlık": jump to the newest position.
+  // "instant": jump to the newest position.
   const f = speed() > 200 ? queue.splice(0).pop() : queue.shift();
   draw(f.cells, { move: f.i, score: f.score, dir: f.dir, ms: f.ms });
 }
 function finish() {
   const e = ended;
   draw(e.cells, { move: e.moves, score: e.score, dir: "-" });
-  overlay(true, "Oyun bitti", `skor ${fmt(e.score)} · en büyük ${fmt(e.max_tile)} · ${fmt(e.moves)} hamle`);
-  setStatus("wstatus", `Bitti — tohum ${e.seed}.`);
+  overlay(true, "Game over", `score ${fmt(e.score)} · max tile ${fmt(e.max_tile)} · ${fmt(e.moves)} moves`);
+  setStatus("wstatus", `Finished — seed ${e.seed}.`);
   stopWatch();
 }
 function stopWatch() {
@@ -227,25 +227,25 @@ function stopWatch() {
   timer = null;
   queue = [];
   ended = null;
-  $("go").textContent = "Başlat";
+  $("go").textContent = "Start";
 }
 $("go").onclick = () => {
-  if (es || timer) { stopWatch(); setStatus("wstatus", "Durduruldu."); return; }
+  if (es || timer) { stopWatch(); setStatus("wstatus", "Stopped."); return; }
   const model = $("model").value;
   if (!model) return;
   overlay(false);
   const q = new URLSearchParams({ model, depth: $("depth").value, seed: $("seed").value || "0" });
   es = new EventSource("/api/play?" + q);
-  setStatus("wstatus", "Model oynuyor…");
-  $("go").textContent = "Durdur";
+  setStatus("wstatus", "The model is playing…");
+  $("go").textContent = "Stop";
   es.onmessage = ev => {
     const m = JSON.parse(ev.data);
     if (m.t === "pos") queue.push(m);
     else if (m.t === "end") { ended = m; es.close(); es = null; }
-    else if (m.t === "error") { setStatus("wstatus", "Hata: " + m.msg, true); stopWatch(); }
+    else if (m.t === "error") { setStatus("wstatus", "Error: " + m.msg, true); stopWatch(); }
   };
   es.onerror = () => {
-    if (es && !ended) { setStatus("wstatus", "Bağlantı koptu (geçersiz istek ya da gateway kapandı).", true); stopWatch(); }
+    if (es && !ended) { setStatus("wstatus", "Connection lost (invalid request or the gateway stopped).", true); stopWatch(); }
   };
   timer = setInterval(tick, 1000 / Math.min(speed(), 200));
 };
@@ -261,7 +261,7 @@ function newHuman() {
   shown = Array(16).fill(0);
   overlay(false);
   draw(hg, { move: 0, score: 0 });
-  setStatus("hstatus", `Tohum ${$("hseed").value}`);
+  setStatus("hstatus", `Seed ${$("hseed").value}`);
   $("board").focus?.();
 }
 function humanMove(d) {
@@ -271,7 +271,7 @@ function humanMove(d) {
   hscore += s; hmoves++;
   spawn(hg, hrng);
   draw(hg, { move: hmoves, score: hscore });
-  if (!canMove(hg)) overlay(true, "Oyun bitti", `skor ${fmt(hscore)} · en büyük ${fmt(2 ** Math.max(...hg))}`);
+  if (!canMove(hg)) overlay(true, "Game over", `score ${fmt(hscore)} · max tile ${fmt(2 ** Math.max(...hg))}`);
 }
 $("hnew").onclick = newHuman;
 $("hrand").onclick = () => { $("hseed").value = randomSeed(); newHuman(); };
