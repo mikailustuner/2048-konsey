@@ -1,0 +1,7 @@
+build/
+runs/
+*.bin
+*.ckpt
+.venv/
+__pycache__/
+.ipynb_checkpoints/
