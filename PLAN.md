@@ -206,3 +206,8 @@ Süreler çoğunlukla **eğitim/hesap süresi**; kod yazma kısmı daha kısa.
 - **Hız: 165 M hamle/sn** tek iş parçacığı (ölçüt ≥ 20M); rastgele oyun 132k oyun/sn.
 - Doğruluk: 4M rastgele tahta × 4 yön referansla %100 eşleşme; 2000 tam oyun kare kare referansla aynı; tekrar dosyası oyunu birebir üretiyor; iki 32768 → 65536 geçişi uçtan uca test edildi.
 - Hibrit için `MaskedSpace`: sabit kare maskesi + serbest hücrelerin karma tabanlı indekslenmesi (gidiş-dönüş testli).
+
+### Faz 2 — 2026-10-13 ✅
+- 4×6 n-tuple (Yeh/Jaśkowski şekilleri, 8 simetri, 268 MB), hamle-sonrası TD(0), α = 0,1 (özellik sayısına bölünmüş), 8 iş parçacığı Hogwild, 300.000 eğitim oyunu (~13 dk, 340–1500 oyun/sn).
+- Değerlendirme (1-ply, 1000 oyun, tohum 1.000.000+): **2048 %94,0 [92,4–95,3]** (ölçüt ≥ %90 ✅), 4096 %84,5, 8192 %47,3, 16384 %0,3; ort. skor 103.165, maks. 237.164.
+- Öğrenme eğrisi: `analysis/figures/faz2_curve.png`. Checkpoint her 5 dk, kaldığı yerden devam (testli). Tekrar oynatıcı: `analysis/player.html` (JS motoru C++ ile 2000/2000 eşleşti).
