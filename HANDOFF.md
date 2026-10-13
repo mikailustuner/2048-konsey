@@ -1,43 +1,48 @@
 # HANDOFF — 2048-konsey
 
-Son güncelleme: 2026-10-13. Yeni oturum bu dosyayı ve `PLAN.md`'yi okuyarak başlamalı.
+Last update: 2026-10-13. A new session starts by reading this file and `PLAN.md`.
 
-## Proje
-Evrimle ayarlanan RL ajanlarından (n-tuple + TD) oluşan bir konsey + expectimax + oyun sonu tablosu (hibrit) ile 2048 rekor denemesi. Videosu da çekilecek.
-- Kaynak konsept: `~/Downloads/2048_rekor_speedrun_plani.pdf`
-- Ayrıntılı plan, fazlar, başarı ölçütleri: **`PLAN.md`** (tek doğru kaynak)
-- Repo: https://github.com/mikailustuner/2048-konsey (özel, `main`, gh ile giriş yapılı)
+## Project
+A council of RL agents tuned by evolution (n-tuple + TD) + expectimax + endgame tables (hybrid), attempting the 2048 record. A video is planned as well.
+- Detailed plan, phases, success criteria: **`PLAN.md`** (single source of truth; phase results in §7)
+- Repository: https://github.com/mikailustuner/2048-konsey (**public**, `main`, logged in with `gh`)
 
-## Çalışma şekli (kullanıcı tercihi)
-- Türkçe konuş.
-- **Faz faz ilerle:** bir fazı bitir, başarı ölçütünü ölç ve raporla, kullanıcının onayını bekle, sonra sıradakine geç.
-- Kod: `~/.agents/CODING_GUIDELINES.md` geçerli (basitlik, cerrahi değişiklik, önce test, doğrulamadan "bitti" deme).
+## Working agreement (user preferences)
+- Talk to the user in **Turkish**; repository documentation is in **English**.
+- **Phase by phase:** finish a phase, measure and report its criterion, then continue.
+- **All real training runs on Colab A100 + High-RAM, using it to full capacity; the local PC only runs small trials.**
+- Code rules: `~/.agents/CODING_GUIDELINES.md` (simplicity, surgical changes, tests first, never claim "done" without verification).
 
-## Alınan kararlar
-- **D1 Hedef:** baştan hibrit (RL konseyi + oyun sonu tablosu). Saf RL sonucu da ayrıca ölçülüp raporlanacak.
-- **D2 Ortam:** geliştirme yerelde, ağır işler **Google Colab A100 + High-RAM**'de. Kalıcı veri Google Drive'da (`/content/drive/MyDrive/2048/runs/`), kod GitHub'dan `git pull`, token Colab Secrets'ta (`GITHUB_TOKEN`, fine-grained, salt okuma; henüz oluşturulmadı, Faz 0 sonunda kullanıcıya anlatılacak).
-- **D3 Dil:** C++20 çekirdek (Colab'ın eski g++'ı yüzünden C++23 değil), isteğe bağlı CUDA (`-DUSE_CUDA=ON`), analiz Python 3.14 + uv.
-- **D4 Video:** kesin çıktı → ayrıntılı log/tekrar/soy kaydı Faz 0'dan itibaren.
+## Decisions
+- **D1 Goal:** hybrid from the start (RL council + endgame tables). The pure-RL result is measured and reported separately.
+- **D2 Environment:** development locally, heavy jobs on **Google Colab A100 + High-RAM**. Persistent data on Google Drive (`/content/drive/MyDrive/2048/runs/`), code from the public GitHub repository, large tables on the Colab disk (`/content/tables`).
+- **D3 Language:** C++20 core (not C++23, because of Colab's older g++), optional CUDA (`-DUSE_CUDA=ON`), Python analysis.
+- **D4 Video:** certain → detailed logs/replays/lineage from Faz 0.
+- **D5 Licences:** macroxue/2048-ai and 2048EndgameTablebase are GPL-3.0; approach studied, no code copied.
 
-## Doğrulanmış çıta (PDF'teki rakamlar eskiydi)
-- Mutlak SOTA: game-difficulty/2048EndgameTablebase — 65536 %8,4, 32768 %86 (oyun sonu tablosu tabanlı).
-- macroxue/2048-ai (natureofcode fork'u): 65536 %3,5, 32768 %80,5, maks. skor 1.704.908 — elle yazılmış değerlendirme + DP tabloları, RL değil.
-- RL en iyi: Guei vd. 2021 (OTD) — 32768 %72, ort. 625.377, 65536 %0,02.
+## Verified bar
+- Absolute SOTA: game-difficulty/2048EndgameTablebase — 65536 8.4%, 32768 86% (endgame-table based).
+- macroxue/2048-ai: 65536 3.5%, 32768 80.5%, max score 1,704,908 — hand-written evaluation + DP tables, not RL.
+- Best RL: Guei et al. 2021 (OTD) — 32768 72%, mean 625,377, 65536 0.02%.
 
-## Donanım
-- Yerel: Ryzen 5 1500X (4C/8T), 16 GB RAM, GTX 1050 Ti 4 GB, g++ 16.2, Python 3.14, uv var; **cmake yok** (`uv tool install cmake` ile kurulacak).
-- Colab: A100 + High-RAM — rakamlar **doğrulanmadı** (~12 vCPU, ~80 GB RAM, 40/80 GB GPU tahmini). İlk oturumda `nproc`, `free -h`, `nvidia-smi`, `g++ --version` ölçülüp PLAN.md'ye yazılacak.
+## Hardware
+- Local: Ryzen 5 1500X (4C/8T), 16 GB RAM, GTX 1050 Ti 4 GB (~2.4 GB free), g++ 16.2, Python 3.14, uv, cmake (uv tool), Docker with the NVIDIA runtime.
+- Colab: A100 + High-RAM — numbers are measured by notebook cell 2 (`runs/hardware.txt` on Drive).
 
-## Durum (2026-10-13)
-- Faz 0–2 ✅ (etiketler `faz-0..2`, sonuçlar PLAN.md §7).
-- Faz 3–5: kod + GPU (Faz 4b) + Colab hattı hazır ve yerelde doğrulandı; **ölçümler Colab'da koşulacak** (`colab/run.ipynb`, sırayla).
-- Arayüz: `gui/launch.sh` (modeli canlı izle / kendin oyna), model Drive'dan `tools/fetch_model.sh` ile.
-- CUDA yerelde: `docker run --gpus all ... konsey-cuda:12.6` (Ubuntu 22.04 + CUDA 12.6 + g++ 11, Colab vekili); derleme dizini `build-cuda/`, ikililer host'ta da çalışır.
+## Status
+- Faz 0–2 ✅ measured (tags `faz-0..2`).
+- Faz 3–5 ✅ accepted by the user: code + GPU path (Faz 4b) + Colab pipeline complete and validated locally; full-scale numbers come from the Colab run.
+- Faz 6 ✅ code complete and validated: `search/` (transposition table, probability cut, iterative deepening, tile-downgrading), `tablebase/` (endgame tables verified against brute force, mmap, 8-orientation lookup, coverage measurement), hybrid agent with a measured table/search switch point; Colab cells 11–12. Full-scale criteria (6a: 32768 ≥ 50% without tables; 6b: hybrid 32768 ≥ 80%, 65536 > 3.5%) are measured on Colab.
+- GUI: `gui/launch.sh` (watch a model live / play yourself); models from Drive via `tools/fetch_model.sh` (rclone in `~/.local/bin`, needs `rclone config create gdrive drive scope=drive.readonly` once).
+- Local CUDA: Docker image `konsey-cuda:12.6` (Ubuntu 22.04 + CUDA 12.6 + g++ 11, the Colab proxy; built from a two-line Dockerfile: `FROM nvidia/cuda:12.6.3-devel-ubuntu22.04` + `apt-get install g++ ninja-build python3-pip && pip3 install cmake`), build dir `build-cuda/`; its binaries also run on the host. `python3 colab/dryrun.py` runs the whole notebook with tiny budgets.
 
-## Sıradaki adım
-Kullanıcı: Colab Secrets'a `GITHUB_TOKEN` ekle → `colab/run.ipynb` hücre 1–6 → bütçeleri kalibrasyona göre ayarla → 7… Sonra `runs/RAPOR.md` ile faz sonuçları PLAN.md'ye.
+## Next step
+1. User: open `colab/run.ipynb` on Colab (A100 + High-RAM) and run the cells in order; results land in `MyDrive/2048/runs/REPORT.md`.
+2. Copy the measured numbers into PLAN.md §7 (Faz 3–6) and tag the phases.
+3. Faz 7 (record attempt) after that.
 
-## Açık noktalar / dikkat
-- GPU yolu yalnızca hızlı tahta (65536 birleşmesi yok); rekor/65536 ölçümleri CPU `eval` ile (kesin yol).
-- GPU eğitimi TD(0)/TC; λ>0 yalnızca CPU'da.
-- macroxue ve 2048EndgameTablebase lisansları Faz 6b'den önce incelenecek.
+## Open points / caveats
+- The GPU path uses the fast board only (no 65536 merge); record/65536 measurements use the CPU `eval` (exact path).
+- GPU training is TD(0)/TC; TD(λ) exists on the CPU only, so the GPU PBT evolves α and the OI value.
+- Endgame tables: a table only plays when the smallest locked tile equals its target (the chain end it feeds), and only overrides the search when the search's move is `--table-margin` less likely to succeed. Locally (weak trial network, target 128) tables did not improve play — their value is expected at 32768+/65536 with large targets, which needs Colab-scale tables. Twelve free cells means billions of positions.
+- The repository has no licence file yet (public, so "all rights reserved" by default) — the owner should choose one.

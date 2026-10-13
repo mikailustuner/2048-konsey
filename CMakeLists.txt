@@ -17,12 +17,12 @@ add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Wall;-Wextra>")
 find_package(Threads REQUIRED)
 
 file(GLOB LIB_SOURCES CONFIGURE_DEPENDS
-  engine/*.cpp ntuple/*.cpp search/*.cpp evolve/*.cpp council/*.cpp tools/agents.cpp)
+  engine/*.cpp ntuple/*.cpp search/*.cpp evolve/*.cpp council/*.cpp tablebase/*.cpp tools/agents.cpp)
 add_library(konsey STATIC ${LIB_SOURCES})
 target_include_directories(konsey PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(konsey PUBLIC Threads::Threads)
 
-foreach(tool eval bench replay train evolve distill play)
+foreach(tool eval bench replay train evolve distill play tablebase)
   add_executable(${tool} tools/${tool}.cpp)
   target_link_libraries(${tool} PRIVATE konsey)
 endforeach()

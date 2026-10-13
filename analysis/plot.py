@@ -54,21 +54,21 @@ def curve(args):
         axes[0].plot(x, [r["ort_skor"] for r in rs], color=c, linewidth=2, label=run)
         for ax, t in zip(axes[1:], tiles):
             ax.plot(x, [100 * r["oranlar"][t] for r in rs], color=c, linewidth=2)
-    style(axes[0], "Ortalama skor (eğitim oyunları, pencere ortalaması)", "skor")
+    style(axes[0], "Mean score (training games, window mean)", "score")
     for ax, t in zip(axes[1:], tiles):
-        style(ax, f"{t} oranı", "%")
-    axes[-1].set_xlabel("eğitim oyunu", color=INK2, fontsize=9)
+        style(ax, f"{t} reach rate", "%")
+    axes[-1].set_xlabel("training games", color=INK2, fontsize=9)
     if len(runs) > 1:
         axes[0].legend(frameon=False, fontsize=8, labelcolor=INK)
     fig.tight_layout()
     fig.savefig(args.out, dpi=130, facecolor=SURFACE)
-    print("yazildi:", args.out)
+    print("written:", args.out)
 
 
 def table(args):
     """Markdown table of evaluation lines (no egitim_oyunu)."""
     rows = [r for r in read(args.logs) if "egitim_oyunu" not in r and (args.faz is None or r["faz"] == args.faz)]
-    head = ["ajan", "oyun", "ort. skor"] + TILES[:5]
+    head = ["agent", "games", "mean score"] + TILES[:5]
     print("| " + " | ".join(head) + " |")
     print("|" + "---|" * len(head))
     for r in rows:
@@ -88,14 +88,14 @@ def evolve(args):
     g = sorted(gens)
     fig, ax = plt.subplots(figsize=(8, 3.5))
     fig.patch.set_facecolor(SURFACE)
-    ax.plot(g, [max(gens[i]) for i in g], color=SERIES[0], linewidth=2, label="en iyi ajan")
-    ax.plot(g, [sum(gens[i]) / len(gens[i]) for i in g], color=SERIES[1], linewidth=2, label="nüfus ortalaması")
-    style(ax, "Turnuva skoru, nesiller boyunca", "ort. skor")
-    ax.set_xlabel("nesil", color=INK2, fontsize=9)
+    ax.plot(g, [max(gens[i]) for i in g], color=SERIES[0], linewidth=2, label="best agent")
+    ax.plot(g, [sum(gens[i]) / len(gens[i]) for i in g], color=SERIES[1], linewidth=2, label="population mean")
+    style(ax, "Tournament score over generations", "mean score")
+    ax.set_xlabel("generation", color=INK2, fontsize=9)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK)
     fig.tight_layout()
     fig.savefig(args.out, dpi=130, facecolor=SURFACE)
-    print("yazildi:", args.out)
+    print("written:", args.out)
 
 
 def main():
