@@ -117,7 +117,7 @@ TEST_CASE("batched GPU training learns; copy_agent and multi-stage promotion wor
              [&](int, const EvalReport&, int64_t) { windows++; });
     CHECK(done[0] == 20000);
     CHECK(done[1] == 1000);
-    CHECK(windows == 4);
+    CHECK(windows == 5);  // 4 full windows of agent 0 + the partial (1000-game) window of agent 1
     EvalReport after = gp.evaluate({0}, {}, 1, c);
     std::printf("GPU egitim: once %.0f, 20k oyun sonra %.0f (512: %llu/500)\n", before, after.mean_score(),
                 (unsigned long long)after.reached(9));
