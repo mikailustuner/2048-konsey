@@ -11,14 +11,18 @@ namespace k2048 {
 
 namespace {
 
+}  // namespace
+
 // The 8 symmetries of the square: optional transpose, row flip, column flip.
-int sym_cell(int cell, int s) {
+int NTupleNet::sym_cell(int cell, int s) {
     int r = cell / 4, c = cell % 4;
     if (s & 4) std::swap(r, c);
     if (s & 1) r = 3 - r;
     if (s & 2) c = 3 - c;
     return 4 * r + c;
 }
+
+namespace {
 
 std::string join(const std::vector<std::vector<int>>& v, char outer, char inner) {
     std::string s;

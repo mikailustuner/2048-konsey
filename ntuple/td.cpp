@@ -59,6 +59,18 @@ GameResult td_episode(NTupleNet& net, const TDParams& p, uint64_t seed) {
     return res;
 }
 
+void report_window(const TrainOptions& o, int64_t done, const EvalReport& w) {
+    LogMeta m = o.meta;
+    m.egitim_oyunu = done;
+    if (!o.log_path.empty()) append_line(o.log_path, log_line(m, w));
+    if (o.quiet) return;
+    double n = double(w.games());
+    std::printf("[%lld oyun, %.0f oyun/sn] ort %.0f | 2048 %.1f%% 8192 %.1f%% 16384 %.1f%% 32768 %.2f%%\n", (long long)done,
+                n / w.seconds, w.mean_score(), 100.0 * double(w.reached(11)) / n, 100.0 * double(w.reached(13)) / n,
+                100.0 * double(w.reached(14)) / n, 100.0 * double(w.reached(15)) / n);
+    std::fflush(stdout);
+}
+
 std::string ckpt_header(const TDParams& p, int64_t games) {
     return "games=" + std::to_string(games) + "\nalpha=" + std::to_string(p.alpha) +
            "\nlambda=" + std::to_string(p.lambda) + "\n";
@@ -84,17 +96,7 @@ int64_t train(NTupleNet& net, const TDParams& p, const TrainOptions& o, int64_t 
             auto now = std::chrono::steady_clock::now();
             if (int64_t(window.results.size()) >= o.log_every) {
                 window.seconds = std::chrono::duration<double>(now - last_log).count();
-                LogMeta m = o.meta;
-                m.egitim_oyunu = g + 1;
-                if (!o.log_path.empty()) append_line(o.log_path, log_line(m, window));
-                if (!o.quiet)
-                    std::printf("[%lld oyun, %.0f oyun/sn] ort %.0f | 2048 %.1f%% 8192 %.1f%% 16384 %.1f%% 32768 %.2f%%\n",
-                                (long long)(g + 1), double(window.games()) / window.seconds, window.mean_score(),
-                                100.0 * double(window.reached(11)) / window.games(),
-                                100.0 * double(window.reached(13)) / window.games(),
-                                100.0 * double(window.reached(14)) / window.games(),
-                                100.0 * double(window.reached(15)) / window.games());
-                std::fflush(stdout);
+                report_window(o, g + 1, window);
                 window.results.clear();
                 last_log = now;
             }

@@ -11,16 +11,6 @@
 
 namespace k2048 {
 
-namespace {
-
-struct Agent {
-    int uid = 0, parent = -1;
-    Genome g;
-    int64_t games = 0;
-    double fitness = 0;
-    std::unique_ptr<NTupleNet> net;
-};
-
 std::vector<std::vector<int>> parse_stages(const std::string& s) {
     std::vector<std::vector<int>> v(1);
     if (s.empty()) return v;
@@ -39,9 +29,18 @@ std::vector<std::vector<int>> parse_stages(const std::string& s) {
     return v;
 }
 
+Genome mutate(const Genome& g, Rng& rng, bool mutate_lambda) {
+    Genome m = g;
+    m.alpha *= rng.below(2) ? 1.25f : 0.8f;
+    if (mutate_lambda) m.lambda = std::clamp(m.lambda + (rng.below(2) ? 0.1f : -0.1f), 0.0f, 0.9f);
+    return m;
+}
+
+namespace {
+
 std::string net_path(const PBTConfig& c, size_t slot) { return c.dir + "/agent_" + std::to_string(slot) + ".bin"; }
 
-void save_state(const PBTConfig& c, int gen, int next_uid, const std::vector<Agent>& pop) {
+void save_state(const PBTConfig& c, int gen, int next_uid, const std::vector<PBTAgent>& pop) {
     for (size_t i = 0; i < pop.size(); ++i) pop[i].net->save(net_path(c, i), "games=" + std::to_string(pop[i].games) + "\n");
     std::string tmp = c.dir + "/population.txt.tmp";
     {
@@ -66,25 +65,67 @@ void parallel_for(int n, int workers, F&& f) {
     for (auto& t : pool) t.join();
 }
 
-std::string genome_json(const Agent& a) {
+std::string genome_json(const PBTAgent& a) {
     char buf[200];
     std::snprintf(buf, sizeof buf, "\"uid\":%d,\"ebeveyn\":%d,\"alpha\":%.5f,\"lambda\":%.4f,\"oi\":%.0f", a.uid,
                   a.parent, a.g.alpha, a.g.lambda, a.g.oi);
     return buf;
 }
 
+
+class CpuBackend : public PBTBackend {
+public:
+    void begin(std::vector<PBTAgent>& pop) override {
+        population_ = int(pop.size());
+    }
+    void train(std::vector<PBTAgent>& pop, const PBTConfig& c, int gen) override {
+        parallel_for(c.population, concurrent(c), [&](int i) {
+            PBTAgent& a = pop[size_t(i)];
+            TrainOptions o;
+            o.games = a.games + c.train_games;
+            o.threads = per_agent(c);
+            o.seed = (uint64_t(a.uid) + 1) << 40;  // lineage-specific training seeds
+            o.log_every = c.train_games;
+            o.log_path = c.dir + "/train.jsonl";
+            o.meta = {c.run_id, "4", "a" + std::to_string(a.uid), gen};
+            o.quiet = true;
+            a.games = train_net(*a.net, {a.g.alpha, a.g.lambda}, o, a.games);
+        });
+    }
+    std::vector<EvalReport> tournament(std::vector<PBTAgent>& pop, const EvalConfig& ec0) override {
+        std::vector<EvalReport> reps(pop.size());
+        EvalConfig ec = ec0;
+        ec.threads = std::max(1, ec0.threads / population_);
+        parallel_for(population_, std::min(population_, ec0.threads), [&](int i) {
+            const NTupleNet* net = pop[size_t(i)].net.get();
+            reps[size_t(i)] = evaluate(
+                [net] {
+                    ValueFn v = [net](Board x) { return net->value(x); };
+                    return Policy([v](Board b) { return greedy_move(b, v); });
+                },
+                ec);
+        });
+        return reps;
+    }
+    void exploit(std::vector<PBTAgent>& pop, size_t dst, size_t src) override { pop[dst].net->copy_from(*pop[src].net); }
+    void sync_to_host(std::vector<PBTAgent>&) override {}
+
+private:
+    static int per_agent(const PBTConfig& c) { return std::max(1, c.threads / c.population); }
+    static int concurrent(const PBTConfig& c) { return std::max(1, c.threads / per_agent(c)); }
+    static int64_t train_net(NTupleNet& n, const TDParams& p, const TrainOptions& o, int64_t done) {
+        return k2048::train(n, p, o, done);
+    }
+    int population_ = 1;
+};
+
 }  // namespace
 
-Genome mutate(const Genome& g, Rng& rng) {
-    Genome m = g;
-    m.alpha *= rng.below(2) ? 1.25f : 0.8f;
-    m.lambda = std::clamp(m.lambda + (rng.below(2) ? 0.1f : -0.1f), 0.0f, 0.9f);
-    return m;
-}
-
-void run_pbt(const PBTConfig& c) {
+void run_pbt(const PBTConfig& c, PBTBackend* backend) {
+    CpuBackend cpu;
+    PBTBackend& be = backend ? *backend : cpu;
     std::filesystem::create_directories(c.dir);
-    std::vector<Agent> pop(size_t(c.population));
+    std::vector<PBTAgent> pop(size_t(c.population));
     int gen = 0, next_uid = 0;
     const std::string state = c.dir + "/population.txt";
     if (std::filesystem::exists(state)) {
@@ -107,39 +148,18 @@ void run_pbt(const PBTConfig& c) {
             a.net = std::make_unique<NTupleNet>(NTupleNet::preset(c.net), parse_stages(c.stages), c.tc, a.g.oi);
         }
     }
-    const int per_agent = std::max(1, c.threads / c.population);
-    const int concurrent = std::max(1, c.threads / per_agent);
+    be.begin(pop);
 
     for (; gen < c.generations; ++gen) {
         // 1. Train.
-        parallel_for(c.population, concurrent, [&](int i) {
-            Agent& a = pop[size_t(i)];
-            TrainOptions o;
-            o.games = a.games + c.train_games;
-            o.threads = per_agent;
-            o.seed = (uint64_t(a.uid) + 1) << 40;  // lineage-specific training seeds
-            o.log_every = c.train_games;
-            o.log_path = c.dir + "/train.jsonl";
-            o.meta = {c.run_id, "4", "a" + std::to_string(a.uid), gen};
-            o.quiet = true;
-            a.games = train(*a.net, {a.g.alpha, a.g.lambda}, o, a.games);
-        });
+        be.train(pop, c, gen);
         // 2. Tournament on common seeds.
         EvalConfig ec;
         ec.games = c.tourney_games;
         ec.seed0 = 2'000'000 + uint64_t(gen) * uint64_t(c.tourney_games);
-        ec.threads = per_agent;
-        std::vector<EvalReport> reps(pop.size());
-        parallel_for(c.population, concurrent, [&](int i) {
-            const NTupleNet* net = pop[size_t(i)].net.get();
-            reps[size_t(i)] = evaluate(
-                [net] {
-                    ValueFn v = [net](Board x) { return net->value(x); };
-                    return Policy([v](Board b) { return greedy_move(b, v); });
-                },
-                ec);
-            pop[size_t(i)].fitness = reps[size_t(i)].mean_score();
-        });
+        ec.threads = c.threads;
+        std::vector<EvalReport> reps = be.tournament(pop, ec);
+        for (size_t i = 0; i < pop.size(); ++i) pop[i].fitness = reps[i].mean_score();
         for (size_t i = 0; i < pop.size(); ++i) {
             LogMeta m{c.run_id, "4", "a" + std::to_string(pop[i].uid), gen, pop[i].games};
             std::string line = log_line(m, reps[i]);
@@ -162,11 +182,12 @@ void run_pbt(const PBTConfig& c) {
             Rng rng(c.seed * 1000 + uint64_t(gen));
             size_t cut = std::max<size_t>(1, size_t(std::lround(0.25 * double(pop.size()))));
             for (size_t k = 0; k < cut; ++k) {
-                Agent& loser = pop[order[order.size() - 1 - k]];
-                const Agent& winner = pop[order[rng.below(uint32_t(cut))]];
+                size_t li = order[order.size() - 1 - k], wi = order[rng.below(uint32_t(cut))];
+                PBTAgent& loser = pop[li];
+                const PBTAgent& winner = pop[wi];
                 int old = loser.uid;
-                loser.net->copy_from(*winner.net);
-                loser.g = mutate(winner.g, rng);
+                be.exploit(pop, li, wi);
+                loser.g = mutate(winner.g, rng, c.lambda_hi > 0);
                 loser.games = winner.games;
                 loser.parent = winner.uid;
                 loser.uid = next_uid++;
@@ -174,7 +195,10 @@ void run_pbt(const PBTConfig& c) {
                                                           std::to_string(old) + "," + genome_json(loser) + "}");
             }
         }
-        save_state(c, gen + 1, next_uid, pop);
+        if ((gen + 1) % std::max(1, c.save_every) == 0 || gen + 1 == c.generations) {
+            be.sync_to_host(pop);
+            save_state(c, gen + 1, next_uid, pop);
+        }
     }
 }
 

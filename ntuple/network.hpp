@@ -45,6 +45,18 @@ public:
     // Returns the extra header lines given to save().
     static std::unique_ptr<NTupleNet> load(const std::string& path, std::string* extra_header = nullptr);
 
+    // Raw storage for the GPU path: per stage, per tuple, index * stride floats (w, E, A).
+    float* data() { return data_.data(); }
+    const float* data() const { return data_.data(); }
+    size_t data_size() const { return data_.size(); }
+    size_t weights_per_stage() const { return weights_per_stage_; }
+    size_t tuple_offset(size_t t) const { return offset_[t]; }
+    uint32_t stage_mask(int k) const { return stage_mask_[size_t(k)]; }
+    bool seen(int k) const { return seen_[k]; }
+    void set_seen(int k, bool v) { seen_[k] = v; }
+    // Cell that pattern cell `cell` maps to under symmetry s (0..7).
+    static int sym_cell(int cell, int s);
+
     const std::vector<std::vector<int>>& patterns() const { return patterns_; }
     const std::vector<std::vector<int>>& stage_conds() const { return stage_conds_; }
 

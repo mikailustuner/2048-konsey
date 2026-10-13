@@ -6,6 +6,12 @@
 
 #include "../engine/eval.hpp"
 #include "agents.hpp"
+#ifdef K2048_CUDA
+#include <sstream>
+
+#include "council/council.hpp"
+#include "gpu/gpu.hpp"
+#endif
 
 using namespace k2048;
 
@@ -20,10 +26,37 @@ int main(int argc, char** argv) {
         LogMeta meta{a.str("run-id", "eval"), a.str("faz", "0"), a.str("ajan-id", a.str("agent", "random")),
                      int(a.num("nesil", 0))};
         std::string out = a.str("out", "runs/eval");
-        auto agent = make_agent(a);
-        a.check();
-
-        EvalReport r = evaluate(agent, cfg);
+        EvalReport r;
+        if (a.has("gpu")) {
+#ifdef K2048_CUDA
+            // greedy / expectimax / council (mean|weighted) over same-shaped nets, all on the GPU.
+            std::string kind = a.str("agent", "greedy");
+            int depth = kind == "greedy" ? 1 : int(a.num("depth", kind == "council" ? 1 : 2));
+            std::vector<float> weights;
+            if (kind == "council") {
+                if (parse_mode(a.str("combine", "mean")) == Council::Mode::Vote) throw std::runtime_error("--gpu: vote is CPU only");
+                std::stringstream ws(a.str("weights", ""));
+                for (std::string w; std::getline(ws, w, ',');) weights.push_back(std::stof(w));
+            }
+            int slots = int(a.num("slots", 0));
+            std::vector<std::unique_ptr<NTupleNet>> nets;
+            std::stringstream ns(a.str("net"));
+            for (std::string pth; std::getline(ns, pth, ',');) nets.push_back(NTupleNet::load(pth));
+            a.check();
+            std::vector<NTupleNet*> ptrs;
+            std::vector<int> members;
+            for (auto& n : nets) members.push_back(int(ptrs.size())), ptrs.push_back(n.get());
+            GpuPopulation gp(ptrs, slots);
+            std::printf("GPU: %s\n", gpu_info().c_str());
+            r = gp.evaluate(members, weights, depth, cfg);
+#else
+            throw std::runtime_error("built without CUDA (-DUSE_CUDA=ON)");
+#endif
+        } else {
+            auto agent = make_agent(a);
+            a.check();
+            r = evaluate(agent, cfg);
+        }
         std::fputs(summary(r).c_str(), stdout);
         append_line(out + "/log.jsonl", log_line(meta, r));
         if (cfg.record)

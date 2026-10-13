@@ -30,6 +30,9 @@ GameResult td_episode(NTupleNet& net, const TDParams& p, uint64_t seed);
 // `done` games; returns the number of games trained in total.
 int64_t train(NTupleNet& net, const TDParams& p, const TrainOptions& o, int64_t done);
 
+// Appends a training-window line to o.log_path and prints a one-line summary.
+void report_window(const TrainOptions& o, int64_t games_done, const EvalReport& window);
+
 std::string ckpt_header(const TDParams& p, int64_t games);
 // Reads "games=" back from a checkpoint's extra header.
 int64_t ckpt_games(const std::string& header);
