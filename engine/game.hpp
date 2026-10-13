@@ -16,6 +16,7 @@ struct GameResult {
     int max_exp = 0;  // exact, may exceed 15
     int moves = 0;
     std::string record;  // one char per move (U/R/D/L), filled when recording
+    Grid final{};        // exact final position
 };
 
 // Plays one full game from `seed`. Spawns come from Rng(seed) only, so a game is fully

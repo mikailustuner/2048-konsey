@@ -20,7 +20,7 @@ add_library(konsey STATIC ${LIB_SOURCES})
 target_include_directories(konsey PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(konsey PUBLIC Threads::Threads)
 
-foreach(tool eval bench replay train evolve distill)
+foreach(tool eval bench replay train evolve distill play)
   add_executable(${tool} tools/${tool}.cpp)
   target_link_libraries(${tool} PRIVATE konsey)
 endforeach()

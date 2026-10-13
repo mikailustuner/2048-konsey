@@ -34,6 +34,7 @@ void play_grid(Grid g, Rng& rng, const Policy& policy, bool record, GameResult& 
         ref::spawn(g, rng);
     }
     for (auto v : g) res.max_exp = std::max<int>(res.max_exp, v);
+    res.final = g;
 }
 
 }  // namespace
@@ -58,6 +59,7 @@ GameResult play_game(uint64_t seed, const Policy& policy, bool record, Board sta
         b = spawn(next, rng);
     }
     res.max_exp = max_exp(b);
+    res.final = to_grid(b);
     return res;
 }
 

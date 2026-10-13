@@ -29,3 +29,13 @@ N oyun, tohumlar `seed .. seed+N-1` (aynı tohum = aynı kare dizisi → eşleş
 `run_id, faz, ajan_id, nesil, oyun_sayisi, hamle_sayisi, oranlar{2048..65536}, guven{2048..65536: [alt, üst]} (Wilson %95), ort_skor, maks_skor, sure`
 
 Tekrar satırı: `{run_id, seed, score, max_tile, moves: "URDL..."}`.
+
+## Arayüz: kendin oyna / modeli canlı izle
+
+```sh
+gui/launch.sh          # veya uygulama menüsü → "2048 Konsey"; http://127.0.0.1:8048
+```
+
+- **Modeli izle:** `runs/` ve `models/` altındaki her ağ listelenir; derinlik (1–3), tohum, hız seçilir. Gateway (`gui/server.py`, yalnızca stdlib, 127.0.0.1) `build/play`'i çalıştırır ve hamleleri SSE ile canlı akıtır.
+- **Kendin oyna:** ok tuşları/WASD/kaydırma; aynı tohum = modelin gördüğü kare dizisinin aynısı.
+- **Colab'da eğitilen modeli getirmek:** Colab notebook'u ağı `MyDrive/2048/final/`'a yazar; yerelde bir kez `rclone config create gdrive drive scope=drive.readonly`, sonra `tools/fetch_model.sh` → `models/`. Ağ dosyası makineden bağımsızdır (yalnızca ikili dosya `-march=native`).
