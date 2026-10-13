@@ -44,10 +44,11 @@ struct LogMeta {
     std::string faz;
     std::string ajan_id;
     int nesil = 0;
+    int64_t egitim_oyunu = -1;  // training games so far; logged when >= 0
 };
 
 // One JSONL line: run_id, faz, ajan_id, nesil, oyun_sayisi, hamle_sayisi, oranlar{2048..65536},
-// guven{2048..65536: [lo, hi]}, ort_skor, maks_skor, sure.
+// guven{2048..65536: [lo, hi]}, ort_skor, maks_skor, sure (+ egitim_oyunu when set).
 std::string log_line(const LogMeta& meta, const EvalReport& r);
 
 // Human readable summary table.

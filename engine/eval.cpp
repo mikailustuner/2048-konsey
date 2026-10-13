@@ -78,6 +78,7 @@ std::string log_line(const LogMeta& m, const EvalReport& r) {
                     "\",\"ajan_id\":\"" + esc(m.ajan_id) + "\",\"nesil\":" + std::to_string(m.nesil) +
                     ",\"oyun_sayisi\":" + std::to_string(r.games()) +
                     ",\"hamle_sayisi\":" + std::to_string(r.total_moves());
+    if (m.egitim_oyunu >= 0) s += ",\"egitim_oyunu\":" + std::to_string(m.egitim_oyunu);
     std::string rates = ",\"oranlar\":{", ci = ",\"guven\":{";
     for (int e = 11; e <= 16; ++e) {
         Wilson w = wilson(r.reached(e), uint64_t(r.games()));

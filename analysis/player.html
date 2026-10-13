@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2048 Tekrar Oynatıcı</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  :root {
+    --bg: #f8fafc; --card: #ffffff; --fg: #0f172a; --muted: #475569; --border: #cbd5e1;
+    --accent: #15803d; --on-accent: #ffffff; --ring: #0f172a; --cell: #e2e8f0; --bad: #b91c1c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f172a; --card: #1b2336; --fg: #f8fafc; --muted: #94a3b8; --border: #475569;
+      --accent: #22c55e; --on-accent: #0f172a; --ring: #ffffff; --cell: #272f42; --bad: #ef4444;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 "IBM Plex Sans", system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font: 700 1.25rem "JetBrains Mono", monospace; margin: 0 0 16px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  label { display: block; font-size: .875rem; color: var(--muted); margin-bottom: 4px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+  .row > div { flex: 1 1 180px; min-width: 0; }
+  select, input[type=file], button { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; min-height: 44px; padding: 8px 12px; width: 100%; }
+  button { cursor: pointer; width: auto; min-width: 44px; transition: background .15s, border-color .15s; }
+  button:hover { border-color: var(--fg); }
+  button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+  :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+  input[type=range] { width: 100%; min-height: 44px; accent-color: var(--accent); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; font-family: "JetBrains Mono", monospace; }
+  .stats div { font-size: .875rem; color: var(--muted); }
+  .stats b { display: block; font-size: 1.125rem; color: var(--fg); }
+  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: var(--border); padding: 8px;
+    border-radius: 12px; width: min(100%, 420px); aspect-ratio: 1; margin: 0 auto; }
+  .tile { display: grid; place-items: center; border-radius: 8px; background: var(--cell);
+    font: 700 clamp(.75rem, 4.2vw, 1.5rem) "JetBrains Mono", monospace; min-width: 0; overflow: hidden; }
+  .status { min-height: 1.5em; font-size: .875rem; color: var(--muted); }
+  .status.bad { color: var(--bad); font-weight: 600; }
+  .empty { color: var(--muted); text-align: center; padding: 24px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>2048 tekrar oynatıcı</h1>
+
+  <section class="panel" aria-label="Dosya ve oyun seçimi">
+    <div class="row">
+      <div><label for="file">replays.jsonl</label><input id="file" type="file" accept=".jsonl,.json,.txt"></div>
+      <div><label for="game">Oyun</label><select id="game" disabled><option>Önce dosya yükleyin</option></select></div>
+    </div>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="panel" aria-label="Oynatma">
+    <div class="stats">
+      <div>Hamle<b id="move">–</b></div>
+      <div>Skor<b id="score">–</b></div>
+      <div>En büyük<b id="max">–</b></div>
+      <div>Tohum<b id="seed">–</b></div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="board" class="board" role="img" aria-label="Tahta"></div>
+    <div style="height:16px"></div>
+    <div class="row">
+      <button id="back" aria-label="Bir hamle geri">◀</button>
+      <button id="play" class="primary">Oynat</button>
+      <button id="fwd" aria-label="Bir hamle ileri">▶</button>
+      <div><label for="speed">Hız: <span id="speedv">20</span> hamle/sn</label><input id="speed" type="range" min="1" max="400" value="20"></div>
+    </div>
+    <div style="margin-top:16px"><label for="pos">Konum</label><input id="pos" type="range" min="0" max="0" value="0" disabled></div>
+  </section>
+</main>
+<script>
+// Exact port of engine/rng.hpp (xoshiro256** seeded by splitmix64) and the reference move rules.
+const M = (1n << 64n) - 1n;
+const rotl = (x, k) => ((x << BigInt(k)) | (x >> BigInt(64 - k))) & M;
+class Rng {
+  constructor(seed) {
+    this.s = [];
+    for (let i = 0; i < 4; i++) {
+      seed = (seed + 0x9e3779b97f4a7c15n) & M;
+      let z = seed;
+      z = ((z ^ (z >> 30n)) * 0xbf58476d1ce4e5b9n) & M;
+      z = ((z ^ (z >> 27n)) * 0x94d049bb133111ebn) & M;
+      this.s.push(z ^ (z >> 31n));
+    }
+  }
+  next() {
+    const s = this.s, r = (rotl((s[1] * 5n) & M, 7) * 9n) & M, t = (s[1] << 17n) & M;
+    s[2] ^= s[0]; s[3] ^= s[1]; s[1] ^= s[2]; s[0] ^= s[3]; s[2] ^= t; s[3] = rotl(s[3], 45);
+    return r;
+  }
+  below(n) { return Number((this.next() * BigInt(n)) >> 64n); }
+}
+function spawn(g, rng) {
+  let k = rng.below(g.filter(v => !v).length);
+  const v = rng.below(10) === 0 ? 2 : 1;
+  for (let i = 0; i < 16; i++) if (!g[i] && k-- === 0) { g[i] = v; return; }
+}
+const lineCell = (d, l, k) => [l + 4 * k, 4 * l + (3 - k), l + 4 * (3 - k), 4 * l + k][d];  // U R D L
+function move(g, d) {
+  let score = 0, moved = false;
+  for (let l = 0; l < 4; l++) {
+    const out = []; let mergedLast = false;
+    for (let k = 0; k < 4; k++) {
+      const v = g[lineCell(d, l, k)];
+      if (!v) continue;
+      if (out.length && !mergedLast && out[out.length - 1] === v) { out[out.length - 1]++; score += 2 ** (v + 1); mergedLast = true; }
+      else { out.push(v); mergedLast = false; }
+    }
+    for (let k = 0; k < 4; k++) { const c = lineCell(d, l, k), v = out[k] || 0; if (g[c] !== v) moved = true; g[c] = v; }
+  }
+  return moved ? score : -1;
+}
+// Precomputes every position of a game: frames[i] = board after i moves.
+function simulate(seed, moves) {
+  const rng = new Rng(seed), g = new Array(16).fill(0);
+  spawn(g, rng); spawn(g, rng);
+  const frames = [{ g: g.slice(), score: 0 }];
+  let score = 0;
+  for (const ch of moves) {
+    const s = move(g, "URDL".indexOf(ch));
+    if (s < 0) throw new Error("geçersiz hamle " + frames.length);
+    score += s; spawn(g, rng);
+    frames.push({ g: g.slice(), score });
+  }
+  return frames;
+}
+
+// Tile colours: light tiles carry dark ink, dark tiles white ink (both >= 4.5:1).
+const TILE = ["", "#eee4da", "#ede0c8", "#f2b179", "#f59563", "#f67c5f", "#f65e3b", "#edcf72", "#edcc61", "#edc850",
+  "#edc53f", "#edc22e", "#3c3a32", "#1e3a8a", "#581c87", "#7f1d1d", "#14532d", "#0c4a6e", "#111827"];
+const INK = e => (e >= 12 ? "#ffffff" : "#1f2937");
+const $ = id => document.getElementById(id);
+const tiles = [...Array(16)].map(() => { const t = document.createElement("div"); t.className = "tile"; $("board").append(t); return t; });
+let games = [], frames = [], pos = 0, timer = null;
+
+function render() {
+  const f = frames[pos];
+  if (!f) return;
+  f.g.forEach((e, i) => {
+    tiles[i].textContent = e ? 2 ** e : "";
+    tiles[i].style.background = e ? TILE[Math.min(e, 18)] : "";
+    tiles[i].style.color = INK(e);
+  });
+  $("move").textContent = `${pos} / ${frames.length - 1}`;
+  $("score").textContent = f.score.toLocaleString("tr-TR");
+  $("max").textContent = (2 ** Math.max(...f.g)).toLocaleString("tr-TR");
+  $("pos").value = pos;
+  $("board").setAttribute("aria-label", "Tahta, hamle " + pos);
+}
+function stop() { clearInterval(timer); timer = null; $("play").textContent = "Oynat"; }
+function setStatus(msg, bad) { $("status").textContent = msg; $("status").className = "status" + (bad ? " bad" : ""); }
+
+$("file").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setStatus("Okunuyor…");
+  const text = await file.text();
+  games = [];
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const j = JSON.parse(line);
+      j.seedBig = BigInt(line.match(/"seed":(\d+)/)[1]);  // keep full 64-bit precision
+      games.push(j);
+    } catch { /* skip malformed lines */ }
+  }
+  if (!games.length) { setStatus("Dosyada oyun bulunamadı.", true); return; }
+  games.sort((a, b) => b.score - a.score);
+  const sel = $("game");
+  sel.innerHTML = "";
+  games.forEach((g, i) => sel.add(new Option(`#${i + 1}  skor ${g.score.toLocaleString("tr-TR")}  ·  ${g.max_tile}  ·  tohum ${g.seedBig}`, i)));
+  sel.disabled = false;
+  load(0);
+});
+$("game").addEventListener("change", e => load(+e.target.value));
+
+function load(i) {
+  stop();
+  const g = games[i];
+  try {
+    frames = simulate(g.seedBig, g.moves);
+    const last = frames[frames.length - 1];
+    const ok = last.score === g.score;
+    setStatus(ok ? `${games.length} oyun yüklendi · skor kayıtla eşleşti` : `UYUŞMAZLIK: hesaplanan ${last.score}, kayıt ${g.score}`, !ok);
+  } catch (err) { frames = []; setStatus("Tekrar hatası: " + err.message, true); return; }
+  pos = 0;
+  $("seed").textContent = String(g.seedBig);
+  $("pos").max = frames.length - 1;
+  $("pos").disabled = false;
+  render();
+}
+const step = d => { stop(); pos = Math.max(0, Math.min(frames.length - 1, pos + d)); render(); };
+$("back").onclick = () => step(-1);
+$("fwd").onclick = () => step(1);
+$("pos").oninput = e => { stop(); pos = +e.target.value; render(); };
+$("speed").oninput = e => { $("speedv").textContent = e.target.value; if (timer) { stop(); play(); } };
+function play() {
+  if (!frames.length) return;
+  if (pos >= frames.length - 1) pos = 0;
+  $("play").textContent = "Duraklat";
+  timer = setInterval(() => { if (pos >= frames.length - 1) return stop(); pos++; render(); }, 1000 / +$("speed").value);
+}
+$("play").onclick = () => (timer ? stop() : play());
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "SELECT" || e.target.type === "range") return;
+  if (e.key === " ") { e.preventDefault(); timer ? stop() : play(); }
+  if (e.key === "ArrowRight") step(1);
+  if (e.key === "ArrowLeft") step(-1);
+});
+</script>
+</body>
+</html>
